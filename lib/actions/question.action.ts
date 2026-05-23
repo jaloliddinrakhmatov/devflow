@@ -42,6 +42,7 @@ export async function createQuestion(
 
   const session = await mongoose.startSession();
   session.startTransaction();
+  let committed = false;
 
   try {
     const [question] = await Question.create(
@@ -76,7 +77,10 @@ export async function createQuestion(
       { session }
     );
 
-    // log the interaction
+    await session.commitTransaction();
+    committed = true;
+
+    // log the interaction (after commit, doesn't need to be in transaction)
     after(async () => {
       await createInteraction({
         action: "post",
@@ -86,11 +90,11 @@ export async function createQuestion(
       });
     });
 
-    await session.commitTransaction();
-
     return { success: true, data: JSON.parse(JSON.stringify(question)) };
   } catch (error) {
-    await session.abortTransaction();
+    if (!committed) {
+      await session.abortTransaction();
+    }
     return handleError(error) as ErrorResponse;
   } finally {
     await session.endSession();

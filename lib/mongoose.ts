@@ -35,6 +35,8 @@ const dbConnect = async (): Promise<Mongoose> => {
     cached.promise = mongoose
       .connect(MONGODB_URI, {
         dbName: "devflow",
+        bufferCommands: false,
+        serverSelectionTimeoutMS: 5000,
       })
       .then((result) => {
         logger.info("Connected to MongoDB");
@@ -42,11 +44,17 @@ const dbConnect = async (): Promise<Mongoose> => {
       })
       .catch((error) => {
         logger.error("Error connecting to MongoDB", error);
+        cached.promise = null;
         throw error;
       });
   }
 
-  cached.conn = await cached.promise;
+  try {
+    cached.conn = await cached.promise;
+  } catch (error) {
+    cached.promise = null;
+    throw error;
+  }
 
   return cached.conn;
 };
